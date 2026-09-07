@@ -1,0 +1,76 @@
+{
+  "patrol": [],
+  "thermal": [
+    {
+      "id": "th-1",
+      "pole": "2 (หม้อแปลงเฉพาะไลน์250kVA)",
+      "jobType": "งาน Thermal",
+      "voltage": "LV",
+      "mainEquipment": "1. จุดร้อนในระบบสายส่ง (L-HS)",
+      "equipment": "1.3 จุดต่อ/จุดสัมผัสทางไฟฟ้า (L-HS-2)",
+      "code": "L-HS-22",
+      "defect": "หน้าสัมผัส LT SW. ด้าน Load",
+      "fairDesc": "แก้ไข ภายใน 3 เดือน",
+      "poorDesc": "แก้ไข ภายใน 1 เดือน",
+      "veryPoorDesc": "แก้ไขทันที",
+      "deltaT": 74,
+      "condition": "แย่มาก",
+      "action": "แก้ไขทันที",
+      "gps": "13.794261, 100.225106",
+      "photoName": "Thermal_Images/2.ภาพถ่าย.090835.jpg",
+      "createdAt": "2026-03-12T09:08:35.000Z"
+    },
+    {
+      "id": "th-2",
+      "pole": "1",
+      "jobType": "งาน Thermal",
+      "voltage": "LV",
+      "mainEquipment": "1. จุดร้อนในระบบสายส่ง (L-HS)",
+      "equipment": "1.3 จุดต่อ/จุดสัมผัสทางไฟฟ้า (L-HS-2)",
+      "code": "L-HS-22",
+      "defect": "หน้าสัมผัส LT SW. ด้าน Load",
+      "fairDesc": "แก้ไข ภายใน 3 เดือน",
+      "poorDesc": "แก้ไข ภายใน 1 เดือน",
+      "veryPoorDesc": "แก้ไขทันที",
+      "deltaT": 25,
+      "condition": "ปานกลาง",
+      "action": "แก้ไข ภายใน 3 เดือน",
+      "gps": "13.879023, 100.190669",
+      "photoName": "Thermal_Images/3.ภาพถ่าย.110925.jpg",
+      "createdAt": "2026-03-12T11:09:25.000Z"
+    },
+    {
+      "id": "th-3",
+      "pole": "2",
+      "jobType": "งาน Thermal",
+      "voltage": "MV",
+      "mainEquipment": "1. จุดร้อนในระบบสายส่ง (D-HS)",
+      "equipment": "1.2 สายตัวนำ (D-HS-1)",
+      "code": "D-HS-11",
+      "defect": "สายไฟฟ้า",
+      "fairDesc": "แก้ไข ภายใน 3 เดือน",
+      "poorDesc": "แก้ไข ภายใน 1 เดือน",
+      "veryPoorDesc": "แก้ไขทันที",
+      "deltaT": 30,
+      "condition": "",
+      "action": "ไม่พบข้อมูล",
+      "gps": "13.878953, 100.190677",
+      "photoName": "Thermal_Images/4.ภาพถ่าย.111907.jpg",
+      "createdAt": "2026-03-12T11:19:07.000Z"
+    }
+  ],
+  "pd": [
+    {
+      "id": "pd-1",
+      "pole": "33",
+      "voltage": "LV",
+      "equipment": "Transformer",
+      "condition": "ปานกลาง (Fair)",
+      "action": "ได้ยินเสียงดังต่อเนื่อง เกิด Corona หรือ Tracking อาจจะเกิดการเสื่อมของฉนวนทางไฟฟ้าและตรวจสอบซ้ำหรือดำเนินการแก้ไขไม่ควรเกิน 3 เดือน",
+      "pdType": "Surface",
+      "gps": "",
+      "photoName": "PD_Images/5.ภาพถ่าย.052338.jpg",
+      "createdAt": "2026-03-12T05:23:38.000Z"
+    }
+  ]
+}
