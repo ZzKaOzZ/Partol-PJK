@@ -145,3 +145,12 @@ export function IconEdit(props: IconProps) {
     </svg>
   );
 }
+
+export function IconMap(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4.5 6.2 9.2 4.5 14.8 6.2 19.5 4.5v13.3l-4.7 1.7-5.6-1.7-4.7 1.7Z" />
+      <path d="M9.2 4.5v13.3M14.8 6.2v13.3" />
+    </svg>
+  );
+}

@@ -13,6 +13,7 @@ import {
   IconEdit,
   IconEye,
   IconGps,
+  IconMap,
   IconMenu,
   IconPlus,
   IconRefresh,
@@ -22,7 +23,19 @@ import {
   IconTrash,
   IconWave,
 } from "./icons";
+import MapPanel from "./MapPanel";
 import { loadStore, resetStore, saveStore, uid } from "./store";
+import {
+  compressImage,
+  deleteRemote,
+  fetchRemoteStore,
+  getScriptUrl,
+  mergeStore,
+  photoSrc,
+  setScriptUrl as persistScriptUrl,
+  SHEET_LINK,
+  upsertRemote,
+} from "./sheets";
 import type {
   AppStore,
   Condition,
@@ -83,9 +96,13 @@ function tabFromHash(): TabId {
   return "patrol";
 }
 
+function hashIsMap() {
+  return window.location.hash.replace("#", "") === "map";
+}
+
 export default function App() {
   const [tab, setTab] = useState<TabId>(tabFromHash);
-  const [screen, setScreen] = useState<Screen>({ name: "list" });
+  const [screen, setScreen] = useState<Screen>(() => (hashIsMap() ? { name: "map" } : { name: "list" }));
   const [store, setStore] = useState<AppStore>(loadStore);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
@@ -93,6 +110,7 @@ export default function App() {
   const [selected, setSelected] = useState<string[]>([]);
   const [drawer, setDrawer] = useState(false);
   const [toast, setToast] = useState("");
+  const [scriptUrl, setScriptUrl] = useState(getScriptUrl);
   const [clock, setClock] = useState(() =>
     new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
   );
@@ -102,6 +120,23 @@ export default function App() {
   }, [store]);
 
   useEffect(() => {
+    let cancelled = false;
+    fetchRemoteStore().then((remote) => {
+      if (cancelled || !remote) return;
+      setStore((prev) => mergeStore(prev, remote));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const id = window.setTimeout(() => setToast(""), 4000);
+    return () => window.clearTimeout(id);
+  }, [toast]);
+
+  useEffect(() => {
     const id = setInterval(() => {
       setClock(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
     }, 30000);
@@ -109,7 +144,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const onHash = () => setTab(tabFromHash());
+    const onHash = () => {
+      if (hashIsMap()) {
+        setScreen({ name: "map" });
+        return;
+      }
+      setTab(tabFromHash());
+      setScreen((prev) => (prev.name === "map" ? { name: "list" } : prev));
+    };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
@@ -131,8 +173,55 @@ export default function App() {
     setSelected([]);
   }
 
+  function goMap() {
+    setDrawer(false);
+    setSelecting(false);
+    setSelected([]);
+    setScreen({ name: "map" });
+    window.location.hash = "map";
+  }
+
   function persist(next: AppStore) {
     setStore(next);
+  }
+
+  async function refreshFromSheet() {
+    const remote = await fetchRemoteStore();
+    if (remote) {
+      persist(mergeStore(loadStore(), remote));
+      setToast("โหลดข้อมูลจาก Google Sheet แล้ว");
+      return;
+    }
+    persist(loadStore());
+    setToast(getScriptUrl() ? "รีเฟรชข้อมูลในเครื่องแล้ว" : "ยังไม่ได้เชื่อม Apps Script");
+  }
+
+  function saveRecord(kind: TabId, record: PatrolRecord | ThermalRecord | PdRecord) {
+    const list = store[kind] as Array<PatrolRecord | ThermalRecord | PdRecord>;
+    const exists = list.some((row) => row.id === record.id);
+    persist({
+      ...store,
+      [kind]: exists
+        ? list.map((row) => (row.id === record.id ? record : row))
+        : [record, ...list],
+    } as AppStore);
+    setScreen({ name: "detail", tab: kind, id: record.id });
+    if (!getScriptUrl()) {
+      setToast("บันทึกในเครื่องแล้ว — วางลิงก์ Apps Script ในเมนูเพื่อส่งเข้าชีต");
+      return;
+    }
+    setToast("กำลังบันทึกลง Google Sheet...");
+    void upsertRemote(kind, record).then((synced) => {
+      if (!synced) {
+        setToast("บันทึกในเครื่องแล้ว แต่ส่งเข้าชีตไม่สำเร็จ");
+        return;
+      }
+      setStore((prev) => ({
+        ...prev,
+        [kind]: prev[kind].map((row) => (row.id === synced.id ? { ...row, ...synced } : row)),
+      }));
+      setToast("บันทึกลง Google Sheet แล้ว กดลิงก์ภาพเพื่อดาวน์โหลดได้");
+    });
   }
 
   function removeSelected() {
@@ -141,6 +230,7 @@ export default function App() {
       ...store,
       [tab]: store[tab].filter((row) => !ids.has(row.id)),
     });
+    ids.forEach((id) => void deleteRemote(tab, id));
     setSelected([]);
     setSelecting(false);
     setToast("ลบรายการที่เลือกแล้ว");
@@ -151,6 +241,7 @@ export default function App() {
       ...store,
       [kind]: store[kind].filter((row) => row.id !== id),
     });
+    void deleteRemote(kind, id);
     setScreen({ name: "list" });
     setToast("ลบรายการแล้ว");
   }
@@ -203,12 +294,12 @@ export default function App() {
                     >
                       <IconSelect />
                     </button>
+                    <button className="icon-btn" onClick={goMap} aria-label="แผนที่">
+                      <IconMap />
+                    </button>
                     <button
                       className="icon-btn"
-                      onClick={() => {
-                        persist(loadStore());
-                        setToast("รีเฟรชข้อมูลแล้ว");
-                      }}
+                      onClick={() => void refreshFromSheet()}
                       aria-label="รีเฟรช"
                     >
                       <IconRefresh />
@@ -218,6 +309,11 @@ export default function App() {
               </header>
 
               <main className="content">
+                {!scriptUrl && (
+                  <p className="hint sheet-banner">
+                    ยังไม่ได้เชื่อม Google Sheet — เปิดเมนูแล้ววางลิงก์ Apps Script เพื่อบันทึกลงชีตและให้คอลัมน์รูปดาวน์โหลดได้
+                  </p>
+                )}
                 {filtered.length === 0 ? (
                   <div className="empty">No items</div>
                 ) : (
@@ -284,6 +380,10 @@ export default function App() {
                   <IconWave />
                   PD
                 </button>
+                <button className="nav-item" onClick={goMap}>
+                  <IconMap />
+                  แผนที่
+                </button>
               </nav>
             </>
           )}
@@ -297,19 +397,7 @@ export default function App() {
                   : undefined
               }
               onClose={() => setScreen(screen.id ? { name: "detail", tab: screen.tab, id: screen.id } : { name: "list" })}
-              onSave={(record) => {
-                const kind = screen.tab;
-                const list = store[kind];
-                const exists = list.some((row) => row.id === record.id);
-                persist({
-                  ...store,
-                  [kind]: exists
-                    ? list.map((row) => (row.id === record.id ? record : row))
-                    : [record, ...list],
-                } as AppStore);
-                setScreen({ name: "detail", tab: kind, id: record.id });
-                setToast("บันทึกแล้ว");
-              }}
+              onSave={(record) => saveRecord(screen.tab, record)}
             />
           )}
 
@@ -317,7 +405,13 @@ export default function App() {
             <DetailPanel
               tab={screen.tab}
               record={store[screen.tab].find((row) => row.id === screen.id)}
-              onBack={() => goList(screen.tab)}
+              onBack={() => {
+                if (hashIsMap()) {
+                  setScreen({ name: "map" });
+                  return;
+                }
+                goList(screen.tab);
+              }}
               onEdit={() => setScreen({ name: "form", tab: screen.tab, id: screen.id })}
               onDelete={() => removeOne(screen.id, screen.tab)}
             />
@@ -325,6 +419,14 @@ export default function App() {
 
           {screen.name === "criteria" && (
             <CriteriaPanel kind={screen.kind} onBack={() => setScreen({ name: "list" })} />
+          )}
+
+          {screen.name === "map" && (
+            <MapPanel
+              store={store}
+              onBack={() => goList(tab)}
+              onOpen={(kind, id) => setScreen({ name: "detail", tab: kind, id })}
+            />
           )}
 
           {drawer && (
@@ -344,6 +446,9 @@ export default function App() {
                   </button>
                   <button className={`row ${tab === "pd" ? "active" : ""}`} onClick={() => goList("pd")}>
                     <IconWave /> PD
+                  </button>
+                  <button className={`row ${screen.name === "map" ? "active" : ""}`} onClick={goMap}>
+                    <IconMap /> แผนที่ตามอุปกรณ์หลัก
                   </button>
                   <div className="sep" />
                   <button className="row" onClick={() => { setDrawer(false); setScreen({ name: "criteria", kind: "patrol" }); }}>
@@ -369,6 +474,21 @@ export default function App() {
                   >
                     <IconRefresh /> คืนค่าข้อมูลตัวอย่าง
                   </button>
+                  <a className="row" href={SHEET_LINK} target="_blank" rel="noreferrer">
+                    เปิด Google Sheet
+                  </a>
+                  <div className="drawer-settings">
+                    <label>ลิงก์ Apps Script</label>
+                    <input
+                      value={scriptUrl}
+                      onChange={(e) => {
+                        setScriptUrl(e.target.value);
+                        persistScriptUrl(e.target.value);
+                      }}
+                      placeholder="https://script.google.com/macros/s/..."
+                    />
+                    <p>วาง URL หลัง Deploy เว็บแอป เพื่อบันทึกข้อมูลและรูปลงชีต</p>
+                  </div>
                 </nav>
               </aside>
             </>
@@ -573,7 +693,8 @@ function PhotoField({
           const file = e.target.files?.[0];
           if (!file) return;
           const next = await readFile(file);
-          onChange(next.name, next.data);
+          const data = await compressImage(next.data);
+          onChange(next.name.replace(/\.[^.]+$/, ".jpg"), data);
         }}
       />
       {name && <div className="hint">{name}</div>}
@@ -679,6 +800,9 @@ function PatrolForm({
           gps,
           photoName,
           photoData,
+          photoUrl: existing?.photoUrl,
+          fairDesc: selected?.fair ?? existing?.fairDesc ?? "",
+          poorDesc: selected?.poor ?? existing?.poorDesc ?? "",
           createdAt: existing?.createdAt ?? new Date().toISOString(),
         })
       }
@@ -839,6 +963,7 @@ function ThermalForm({
           gps,
           photoName,
           photoData,
+          photoUrl: existing?.photoUrl,
           createdAt: existing?.createdAt ?? new Date().toISOString(),
         })
       }
@@ -948,6 +1073,7 @@ function PdForm({
           gps,
           photoName,
           photoData,
+          photoUrl: existing?.photoUrl,
           createdAt: existing?.createdAt ?? new Date().toISOString(),
         })
       }
@@ -1051,8 +1177,13 @@ function DetailPanel({
       <div className="detail">
         <h2>เสา {record.pole || "-"}</h2>
         <span className={`badge ${conditionClass(record.condition)}`}>{record.condition || "—"}</span>
-        {record.photoData && <img className="photo-preview" src={record.photoData} alt={record.photoName} />}
-        {record.photoName && !record.photoData && <p className="hint">{record.photoName}</p>}
+        {photoSrc(record) && <img className="photo-preview" src={photoSrc(record)} alt={record.photoName || "ภาพถ่าย"} />}
+        {record.photoUrl && (
+          <a className="download-link" href={record.photoUrl} target="_blank" rel="noreferrer">
+            ดาวน์โหลดภาพถ่าย
+          </a>
+        )}
+        {record.photoName && !photoSrc(record) && !record.photoUrl && <p className="hint">{record.photoName}</p>}
         <dl>
           {rows.filter(([, v]) => v).map(([k, v]) => (
             <div className="kv" key={k}>

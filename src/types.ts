@@ -7,7 +7,27 @@ export type Screen =
   | { name: "list" }
   | { name: "form"; tab: TabId; id?: string }
   | { name: "detail"; tab: TabId; id: string }
-  | { name: "criteria"; kind: "patrol" | "thermal" | "pd" | "gnd" };
+  | { name: "criteria"; kind: "patrol" | "thermal" | "pd" | "gnd" }
+  | { name: "map" };
+
+export interface MapPoint {
+  id: string;
+  tab: TabId;
+  pole: string;
+  jobType: string;
+  voltage: string;
+  mainEquipment: string;
+  equipment: string;
+  defect: string;
+  condition: string;
+  gps: string;
+  lat: number;
+  lng: number;
+  photoName: string;
+  photoData: string;
+  photoUrl?: string;
+  createdAt: string;
+}
 
 export interface PatrolItem {
   voltage: Voltage;
@@ -40,6 +60,9 @@ export interface PatrolRecord {
   gps: string;
   photoName: string;
   photoData: string;
+  photoUrl?: string;
+  fairDesc?: string;
+  poorDesc?: string;
   createdAt: string;
 }
 
@@ -61,6 +84,7 @@ export interface ThermalRecord {
   gps: string;
   photoName: string;
   photoData: string;
+  photoUrl?: string;
   createdAt: string;
 }
 
@@ -75,6 +99,7 @@ export interface PdRecord {
   gps: string;
   photoName: string;
   photoData: string;
+  photoUrl?: string;
   createdAt: string;
 }
 
