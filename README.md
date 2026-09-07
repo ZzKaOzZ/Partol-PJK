@@ -53,6 +53,30 @@ git push -u origin main
 
 ถ้ายังไม่ได้ใส่ Secrets ก็วางลิงก์ Apps Script ในเมนูของแอปได้เหมือนกัน
 
+## 3) ขึ้น Render
+
+ต้องมีโค้ดอยู่บน GitHub ก่อน แล้วค่อยเชื่อม Render
+
+1. เปิด [https://dashboard.render.com](https://dashboard.render.com) แล้วล็อกอินด้วย GitHub
+2. กด **New + → Static Site**
+3. เลือก repo ของแอป Partol
+4. ใส่ค่าดังนี้แล้วกด **Deploy**
+
+| ช่อง | ค่าที่ใส่ |
+|---|---|
+| Name | `partol` |
+| Branch | `main` |
+| Build Command | `npm install && npm run build` |
+| Publish Directory | `dist` |
+
+5. (ถ้ามีแล้ว) ไปที่ **Environment** ใส่ `VITE_APPS_SCRIPT_URL` = ลิงก์เว็บแอปจาก Google Apps Script แล้วกด **Save Changes** เพื่อให้ Render build ใหม่
+
+หลัง deploy สำเร็จ จะได้ลิงก์ประมาณ `https://partol.onrender.com`
+
+ถ้ายังไม่มีค่า Environment ก็เปิดแอปบน Render แล้ววางลิงก์ Apps Script ในเมนู ☰ ได้เหมือนกัน
+
+อย่าเลือก **Web Service** สำหรับแอปนี้ ไม่ต้องใส่ Start Command และไม่ต้องใช้ Docker
+
 ## รันบนเครื่อง
 
 ต้องมี Node.js แล้วเปิด `start.bat` หรือ:
